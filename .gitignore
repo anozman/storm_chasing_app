@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.env
+venv/
+*.sqlite3
+
+# Node.js
+node_modules/
+dist/
+*.log
+*.tsbuildinfo
+
+# Environment files
+.env
+
+# Vite config files
+vite.config.ts
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
