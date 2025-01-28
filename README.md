@@ -10,7 +10,7 @@
 - [AI Training Procedure](#ai-training-procedure)
 - [Data Streams](#data-streams)
 - [Versioning](#versioning)
-- [Contributing](#contributing)
+- [Contributions](#contributions)
 - [License](#license)
 
 ---
@@ -79,6 +79,10 @@ If configured correctly, this running this command should populate the base temp
 ```
 npm run dev
 ```
+Installing other dependencies needed for the application
+```
+npm install leaflet
+```
 
 And the following should be your file structure:
 ```
@@ -110,9 +114,20 @@ Upon success, navagate to *backend/* and run the following command:
 ```
 uvicorn main:app --reload
 ```
+To run the final product with the backend as the server, run the app using the following command:
+```
+uvicorn main:app --host 0.0.0.0 --port 8000
+```
 
 ---
 
 ## Usage
 
 
+
+## Contributions
+
+This section lists several sources that were used for the development of the app.
+
+- [Radar API](https://github.com/awslabs/open-data-docs/tree/main/docs/noaa/noaa-nexrad#accessing-the-real-time-data)
+- [Radar Visualization Toolkit - Py-ART doi: 10.5334/jors.119](https://openresearchsoftware.metajnl.com/articles/10.5334/jors.119)

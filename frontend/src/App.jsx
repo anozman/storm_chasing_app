@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { Dropdown , DropdownButton} from "react-bootstrap"; // Importing react-bootstrap for dropdowns
-import "bootstrap/dist/css/bootstrap.min.css"; // Importing Bootstrap styles
-import './App.css';
+import { Dropdown, DropdownButton } from "react-bootstrap";
+import "bootstrap/dist/css/bootstrap.min.css";
+import "./App.css";
+import MapComponent from "./MapComponent"; // Import the reusable map component
 
 const App = () => {
-  const [data, setData] = useState(null);
-  const [selectedRadar, setSelectedRadar] = useState("Radar 1");
-  const [selectedOverlays, setSelectedOverlays] = useState([]);
-  const [menuTab, setMenuTab] = useState("Option 1");
+  const [data, setData] = useState(null); // Backend data
+  const [selectedRadar, setSelectedRadar] = useState("Radar 1"); // Selected radar
+  const [selectedOverlays, setSelectedOverlays] = useState([]); // Selected overlays
+  const [menuTab, setMenuTab] = useState("Option 1"); // Active menu tab
 
   // Fetch data from the backend when the component mounts
   useEffect(() => {
@@ -32,16 +33,60 @@ const App = () => {
     }
   };
 
+  // Example overlays (could be fetched from backend or dynamically generated)
+  const overlayData = [
+    {
+      id: "overlay1",
+      name: "Overlay 1",
+      data: {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            geometry: {
+              type: "Point",
+              coordinates: [-90.09, 29.95], // Example coordinates
+            },
+            properties: { name: "Point 1" },
+          },
+        ],
+      },
+      style: { color: "red" },
+    },
+    {
+      id: "overlay2",
+      name: "Overlay 2",
+      data: {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            geometry: {
+              type: "LineString",
+              coordinates: [
+                [-90.09, 29.95],
+                [-91.09, 30.95],
+              ],
+            },
+            properties: { name: "Line 1" },
+          },
+        ],
+      },
+      style: { color: "blue" },
+    },
+  ];
+
   return (
     <div className="container">
       {/* Header Section */}
       <header className="header">
+        <title>TornAIdo</title>
         <h1>Storm Chasing App</h1>
       </header>
 
       {/* Menu Bar with Tabs */}
       <div className="menu-bar">
-      {["Option 1", "Option 2", "Option 3"].map((option) => (
+        {["Option 1", "Option 2", "Option 3"].map((option) => (
           <div
             key={option}
             style={{
@@ -58,7 +103,7 @@ const App = () => {
       </div>
 
       {/* Dropdown Menus */}
-      <div class = "dropdown-container">
+      <div className="dropdown-container">
         {/* Radar Data Toggle */}
         <DropdownButton
           id="dropdown-radar"
@@ -80,19 +125,19 @@ const App = () => {
           variant="secondary"
           style={{ marginLeft: "1rem" }}
         >
-          {["Overlay 1", "Overlay 2", "Overlay 3"].map((overlay) => (
+          {overlayData.map((overlay) => (
             <Dropdown.Item
-              key={overlay}
+              key={overlay.id}
               as="div"
               style={{ display: "flex", alignItems: "center" }}
             >
               <input
                 type="checkbox"
-                checked={selectedOverlays.includes(overlay)}
-                onChange={() => handleOverlayToggle(overlay)}
+                checked={selectedOverlays.includes(overlay.id)}
+                onChange={() => handleOverlayToggle(overlay.id)}
                 style={{ marginRight: "0.5rem" }}
               />
-              {overlay}
+              {overlay.name}
             </Dropdown.Item>
           ))}
         </DropdownButton>
@@ -110,7 +155,11 @@ const App = () => {
 
       {/* Map Container */}
       <div className="map-container">
-        <h3>Map will be here</h3>
+        <MapComponent
+          center={[35.4676, -97.5164]} // Default map center (New Orleans as an example)
+          zoom={7} // Default zoom level
+          overlays={overlayData.filter((overlay) => selectedOverlays.includes(overlay.id))}
+        />
       </div>
     </div>
   );
