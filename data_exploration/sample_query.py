@@ -89,11 +89,11 @@ def assemble_chunks(local_file_paths, output_file):
             print(f"Deleted: {file_path}")
     print(f"Combined file saved to: {output_file}")
 
-def main():
+def sample_pipeline():
     """
     Main function to execute the steps to retrieve and assemble the latest radar scan.
     """
-    radar_id = "KTLX"  # Replace with your desired radar station ID
+    radar_id = "KEWX"  # Replace with your desired radar station ID
     output_dir = "../data"
     output_file = os.path.join(output_dir, f"{radar_id}_latest_scan.bin")
 
@@ -110,4 +110,4 @@ def main():
     assemble_chunks(local_file_paths, output_file)
 
 if __name__ == "__main__":
-    main()
+    sample_pipeline()
