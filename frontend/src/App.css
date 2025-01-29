@@ -98,3 +98,15 @@ body, #root {
     height: 400px;
   }
 }
+
+.dropdown-scroll {
+  max-height: 250px; /* Adjust height for 10 items */
+  overflow-y: auto;
+}
+
+.selected-radar {
+  font-weight: bold;
+  background-color: #007bff !important; /* Highlight color */
+  color: white !important;
+}
+

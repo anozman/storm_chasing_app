@@ -5,12 +5,23 @@ import "./App.css";
 import MapComponent from "./MapComponent"; // Import the reusable map component
 
 const App = () => {
+  const [radarSites, setRadarSites] = useState({});
+  const [selectedRadar, setSelectedRadar] = useState(null);
   const [data, setData] = useState(null); // Backend data
-  const [selectedRadar, setSelectedRadar] = useState("Radar 1"); // Selected radar
-  const [selectedOverlays, setSelectedOverlays] = useState([]); // Selected overlays
-  const [menuTab, setMenuTab] = useState("Option 1"); // Active menu tab
 
-  // Fetch data from the backend when the component mounts
+  // Fetch radar sites from radar_sites.json
+  useEffect(() => {
+    fetch("/radar_sites.json")
+      .then((response) => response.json())
+      .then((data) => {
+        setRadarSites(data);
+        const defaultRadar = data["KTLX"] ? "KTLX" : Object.keys(data)[0]; // Set KTLX if available, else first radar
+        setSelectedRadar(defaultRadar);
+      })
+      .catch((error) => console.error("Error loading radar sites:", error));
+  }, []);
+
+  // Fetch data from the backend
   useEffect(() => {
     fetch("/") // Using relative path (proxy set up in vite.config.js)
       .then((response) => response.json())
@@ -24,57 +35,22 @@ const App = () => {
     console.log(`Radar selected: ${eventKey}`);
   };
 
-  // Handle overlay selection
-  const handleOverlayToggle = (overlay) => {
-    if (selectedOverlays.includes(overlay)) {
-      setSelectedOverlays(selectedOverlays.filter((item) => item !== overlay));
-    } else {
-      setSelectedOverlays([...selectedOverlays, overlay]);
-    }
-  };
+  // Sort radar sites: non-TDWR sites alphabetically, TDWR sites at the bottom
+  const sortedRadarSites = Object.keys(radarSites)
+    .filter((site) => site !== selectedRadar) // Exclude selected radar
+    .sort((a, b) => {
+      const isTDWR_A = a.startsWith("T");
+      const isTDWR_B = b.startsWith("T");
 
-  // Example overlays (could be fetched from backend or dynamically generated)
-  const overlayData = [
-    {
-      id: "overlay1",
-      name: "Overlay 1",
-      data: {
-        type: "FeatureCollection",
-        features: [
-          {
-            type: "Feature",
-            geometry: {
-              type: "Point",
-              coordinates: [-90.09, 29.95], // Example coordinates
-            },
-            properties: { name: "Point 1" },
-          },
-        ],
-      },
-      style: { color: "red" },
-    },
-    {
-      id: "overlay2",
-      name: "Overlay 2",
-      data: {
-        type: "FeatureCollection",
-        features: [
-          {
-            type: "Feature",
-            geometry: {
-              type: "LineString",
-              coordinates: [
-                [-90.09, 29.95],
-                [-91.09, 30.95],
-              ],
-            },
-            properties: { name: "Line 1" },
-          },
-        ],
-      },
-      style: { color: "blue" },
-    },
-  ];
+      if (isTDWR_A && !isTDWR_B) return 1; // Move TDWR sites to the bottom
+      if (!isTDWR_A && isTDWR_B) return -1;
+
+      return radarSites[a].name.localeCompare(radarSites[b].name);
+    });
+
+  // Determine zoom level based on radar type
+  const isTDWR = selectedRadar && selectedRadar.startsWith("T");
+  const defaultZoom = isTDWR ? 10 : 7; // More zoomed in for TDWR radars
 
   return (
     <div className="container">
@@ -84,83 +60,54 @@ const App = () => {
         <h1>Storm Chasing App</h1>
       </header>
 
-      {/* Menu Bar with Tabs */}
-      <div className="menu-bar">
-        {["Option 1", "Option 2", "Option 3"].map((option) => (
-          <div
-            key={option}
-            style={{
-              padding: "10px",
-              cursor: "pointer",
-              color: "white",
-              backgroundColor: menuTab === option ? "#555" : "#444",
-            }}
-            onClick={() => setMenuTab(option)}
-          >
-            {option}
-          </div>
-        ))}
-      </div>
-
-      {/* Dropdown Menus */}
+      {/* Dropdown Menu */}
       <div className="dropdown-container">
-        {/* Radar Data Toggle */}
         <DropdownButton
           id="dropdown-radar"
-          title={`Radar Data: ${selectedRadar}`}
+          title={selectedRadar ? `RADAR ${selectedRadar}` : "Loading..."}
           variant="primary"
           onSelect={handleRadarSelect}
+          disabled={!selectedRadar}
         >
-          {["Radar 1", "Radar 2", "Radar 3"].map((radar) => (
-            <Dropdown.Item eventKey={radar} key={radar}>
-              {radar}
-            </Dropdown.Item>
-          ))}
-        </DropdownButton>
-
-        {/* Data Overlays */}
-        <DropdownButton
-          id="dropdown-overlays"
-          title="Data Overlays"
-          variant="secondary"
-          style={{ marginLeft: "1rem" }}
-        >
-          {overlayData.map((overlay) => (
+          {/* Selected Radar at the Top */}
+          {selectedRadar && radarSites[selectedRadar] && (
             <Dropdown.Item
-              key={overlay.id}
-              as="div"
-              style={{ display: "flex", alignItems: "center" }}
+              eventKey={selectedRadar}
+              key={selectedRadar}
+              active
+              className="selected-radar"
             >
-              <input
-                type="checkbox"
-                checked={selectedOverlays.includes(overlay.id)}
-                onChange={() => handleOverlayToggle(overlay.id)}
-                style={{ marginRight: "0.5rem" }}
-              />
-              {overlay.name}
+              {`${selectedRadar}, ${radarSites[selectedRadar].name}, ${radarSites[selectedRadar].state}`}
             </Dropdown.Item>
-          ))}
+          )}
+
+          {/* Scrollable List of Radars */}
+          <div className="dropdown-scroll">
+            {sortedRadarSites.map((site) => (
+              <Dropdown.Item eventKey={site} key={site}>
+                {`${site}, ${radarSites[site].name}, ${radarSites[site].state}`}
+              </Dropdown.Item>
+            ))}
+          </div>
         </DropdownButton>
       </div>
 
       {/* Data from Backend */}
       <div className="data-container">
         <h2>Data from Backend:</h2>
-        {data ? (
-          <pre>{JSON.stringify(data, null, 2)}</pre>
-        ) : (
-          <p>Loading data...</p>
-        )}
+        {data ? <pre>{JSON.stringify(data, null, 2)}</pre> : <p>Loading data...</p>}
       </div>
 
       {/* Map Container */}
-      <div className="map-container">
-        <MapComponent
-          center={[35.4676, -97.5164]} // Default map center (New Orleans as an example)
-          zoom={7} // Default zoom level
-          overlays={overlayData.filter((overlay) => selectedOverlays.includes(overlay.id))}
-        />
-      </div>
+      {selectedRadar && radarSites[selectedRadar] && (
+        <div className="map-container">
+          <MapComponent
+            center={[radarSites[selectedRadar].lat, radarSites[selectedRadar].lon]} // Center map on selected radar site
+            zoom={defaultZoom} // Adjusted zoom level
+            overlays={[]} // No overlays currently
+          />
+        </div>
+      )}
     </div>
   );
 };
