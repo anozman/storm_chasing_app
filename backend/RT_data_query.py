@@ -50,7 +50,7 @@ def find_latest_scan(radar_id):
 
     print(f"Latest scan timestamp: {latest_timestamp}")
     print(f"Found {len(latest_files)} files for the latest scan.")
-    return latest_files
+    return latest_files, latest_timestamp
 
 def download_chunks(file_list, download_dir="../data"):
     """

@@ -15,6 +15,7 @@ from datetime import datetime
 
 # Custom NEXRAD API imports
 from RT_data_query import find_latest_scan, download_chunks, assemble_chunks
+from RT_data_processing import get_radar_elevations
 
 #----------------------------------------------------------------------------------------------------------
 # INITIALIZATION
@@ -45,16 +46,19 @@ app.add_middleware(
 async def get_latest_scan(radar_id: str):
     # Get the latest scan files
     print("Finding latest scan...")
-    latest_files = find_latest_scan(radar_id)
+    latest_files, timestamp = find_latest_scan(radar_id)
     
     if not latest_files:
         return {"error": "No files found for the latest scan."}
 
     # Create a filename for the combined file (e.g., KTLX_20250129-150000.bin)
-    timestamp = latest_files[0]['Key'].split("-")[0]
-    current_time = datetime.now().strftime("%Y%m%d-%H%M%S")
+    #current_time = datetime.now().strftime("%Y%m%d-%H%M%S")
+    current_time = timestamp[0:8] + "-" + timestamp[8:]
     filename = f"{radar_id}_{current_time}.bin"
     output_file_path = os.path.join("../data", filename)
+
+    if os.path.exists(output_file_path):
+        return {"message": f"Radar scan data already exists as {filename}"}
 
     # Download chunks
     downloaded_files = download_chunks(latest_files, download_dir="../data")
@@ -63,6 +67,16 @@ async def get_latest_scan(radar_id: str):
     assemble_chunks(downloaded_files, output_file_path)
 
     return {"message": f"Radar scan data saved as {filename}"}
+
+@app.get("/get-radar-elevations/{radar_id}")
+async def get_radar_elevations_api(radar_id: str):
+    """API to return elevation angles for a radar"""
+    file_path = f"../data/{radar_id}_latest.bin"  # Replace with actual file lookup
+    if not os.path.exists(file_path):
+        return {"error": "Radar file not found"}
+    
+    angles = get_radar_elevations(file_path)
+    return {"elevation_angles": angles}
 
 #----------------------------------------------------------------------------------------------------------
 # SERVING THE REACT FRONTEND
