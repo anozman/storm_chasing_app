@@ -6,7 +6,7 @@ def get_radar_elevations(file_path):
     try:
         radar = pyart.io.read_nexrad_archive(file_path)
         elevations = radar.fixed_angle["data"]  # Extract elevation angles
-        rounded_elevations = [round(angle, 2) for angle in elevations]
+        rounded_elevations = [float("%.02f"%(angle)) for angle in elevations]
         return rounded_elevations
     except Exception as e:
         print(f"Error reading radar file: {e}")

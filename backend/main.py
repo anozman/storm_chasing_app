@@ -12,6 +12,7 @@ from starlette.requests import Request
 
 # Data handling imports
 from datetime import datetime 
+#import numpy as np
 
 # Custom NEXRAD API imports
 from RT_data_query import find_latest_scan, download_chunks, assemble_chunks
@@ -69,9 +70,30 @@ async def get_latest_scan(radar_id: str):
     return {"message": f"Radar scan data saved as {filename}"}
 
 @app.get("/get-radar-elevations/{radar_id}")
-async def get_radar_elevations_api(radar_id: str):
+async def get_radar_elevations_api(radar_id: str, target_file: str = None):
     """API to return elevation angles for a radar"""
-    file_path = f"../data/{radar_id}_latest.bin"  # Replace with actual file lookup
+    if target_file:
+        file_path = f"../data/{target_file}"
+    else:
+        ### Using the get_latest_scan logic 
+        print("Finding latest scan...")
+        latest_files, timestamp = find_latest_scan(radar_id)
+        
+        if not latest_files:
+            return {"error": "No files found for the latest scan."}
+
+        current_time = timestamp[0:8] + "-" + timestamp[8:]
+        filename = f"{radar_id}_{current_time}.bin"
+        output_file_path = os.path.join("../data", filename)
+
+        if not os.path.exists(output_file_path):
+            # Download chunks
+            downloaded_files = download_chunks(latest_files, download_dir="../data")
+            # Combine downloaded chunks into one file
+            assemble_chunks(downloaded_files, output_file_path)
+
+        file_path = output_file_path
+    print("File path: ", file_path)
     if not os.path.exists(file_path):
         return {"error": "Radar file not found"}
     
