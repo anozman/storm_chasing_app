@@ -36,70 +36,73 @@ def find_latest_scan(radar_id, local_dir="../data"):
     previous_files = []
     latest_timestamp = None
     previous_timestamp = None
-    elapsed_time = 0
+    #elapsed_time = 0
 
-    while elapsed_time < MAX_WAIT_TIME:
-        response_iterator = paginator.paginate(Bucket=BUCKET_NAME, Prefix=prefix)
-        
-        temp_latest_files = []
-        temp_previous_files = []
-        temp_latest_timestamp = None
-        temp_previous_timestamp = None
-        chunk_types = set()
+    #while elapsed_time < MAX_WAIT_TIME:
+    ### BEGIN - Commented out the while loop to test the function
+    response_iterator = paginator.paginate(Bucket=BUCKET_NAME, Prefix=prefix)
+    
+    temp_latest_files = []
+    temp_previous_files = []
+    temp_latest_timestamp = None
+    temp_previous_timestamp = None
+    chunk_types = set()
 
-        # Iterate through all objects in the bucket for the given radar ID
-        for page in response_iterator:
-            if 'Contents' not in page:
+    # Iterate through all objects in the bucket for the given radar ID
+    for page in response_iterator:
+        if 'Contents' not in page:
+            continue
+        for obj in page['Contents']:
+            key_parts = obj['Key'].split("/")
+            if len(key_parts) < 3:
                 continue
-            for obj in page['Contents']:
-                key_parts = obj['Key'].split("/")
-                if len(key_parts) < 3:
-                    continue
-                
-                timestamp = key_parts[2].split("-")[0] + key_parts[2].split("-")[1]  # Extract timestamp
-                chunk_type = key_parts[-1].split(".")[0][-1]  # Extract last character (chunk type)
+            
+            timestamp = key_parts[2].split("-")[0] + key_parts[2].split("-")[1]  # Extract timestamp
+            chunk_type = key_parts[-1].split(".")[0][-1]  # Extract last character (chunk type)
 
-                if not temp_latest_timestamp or timestamp > temp_latest_timestamp:
-                    temp_previous_timestamp = temp_latest_timestamp
-                    temp_previous_files = temp_latest_files
+            if not temp_latest_timestamp or timestamp > temp_latest_timestamp:
+                temp_previous_timestamp = temp_latest_timestamp
+                temp_previous_files = temp_latest_files
 
-                    temp_latest_timestamp = timestamp
-                    temp_latest_files = [obj]
-                    chunk_types = {chunk_type}
-                elif timestamp == temp_latest_timestamp:
-                    temp_latest_files.append(obj)
-                    chunk_types.add(chunk_type)
+                temp_latest_timestamp = timestamp
+                temp_latest_files = [obj]
+                chunk_types = {chunk_type}
+            elif timestamp == temp_latest_timestamp:
+                temp_latest_files.append(obj)
+                chunk_types.add(chunk_type)
 
-        # Ensure we have both a latest and previous timestamp
-        if temp_previous_timestamp:
-            latest_files = temp_latest_files
-            previous_files = temp_previous_files
-            latest_timestamp = temp_latest_timestamp
-            previous_timestamp = temp_previous_timestamp
-        
-        print(f"Latest scan: {latest_timestamp} ({len(latest_files)} chunks) | Chunks: {chunk_types}")
+    # Ensure we have both a latest and previous timestamp
+    if temp_previous_timestamp:
+        latest_files = temp_latest_files
+        previous_files = temp_previous_files
+        latest_timestamp = temp_latest_timestamp
+        previous_timestamp = temp_previous_timestamp
+    
+    print(f"Latest scan: {latest_timestamp} ({len(latest_files)} chunks) | Chunks: {chunk_types}")
 
-        # Check if the scan contains at least one "S", multiple "I", and one "E"
-        if 'S' in chunk_types and 'E' in chunk_types and len(chunk_types) > 2:
-            print(f"Scan {latest_timestamp} is complete. Proceeding with download.")
-            return latest_files, latest_timestamp
+    # Check if the scan contains at least one "S", multiple "I", and one "E"
+    if 'S' in chunk_types and 'E' in chunk_types and len(chunk_types) > 2:
+        print(f"Scan {latest_timestamp} is complete. Proceeding with download.")
+        return latest_files, latest_timestamp
 
-        # Check for a previous scan in local storage
-        previous_file_path = os.path.join(local_dir, f"{radar_id}_{previous_timestamp}.bin")
-        if os.path.exists(previous_file_path):
-            print(f"Using previous scan {previous_timestamp} as fallback.")
-            return previous_files, previous_timestamp
+    # Check for a previous scan in local storage
+    previous_file_path = os.path.join(local_dir, f"{radar_id}_{previous_timestamp[0:8]}-{previous_timestamp[8:]}.bin")
+    if os.path.exists(previous_file_path):
+        print(f"Using previous scan {previous_timestamp} as fallback.")
+        return previous_files, previous_timestamp
 
         # Wait before retrying
-        time.sleep(WAIT_INTERVAL)
-        elapsed_time += WAIT_INTERVAL
+        #time.sleep(WAIT_INTERVAL)
+        #elapsed_time += WAIT_INTERVAL
 
     # If timeout, use previous scan if available
     if previous_files:
-        print(f"Timeout reached! Using previous scan {previous_timestamp}.")
+        #print(f"Timeout reached! Using previous scan {previous_timestamp}.")
+        print(f"Using previous scan {previous_timestamp}.")
         return previous_files, previous_timestamp
     else:
-        print(f"Timeout reached! No previous scan available. Using incomplete latest scan {latest_timestamp}.")
+        #print(f"Timeout reached! No previous scan available. Using incomplete latest scan {latest_timestamp}.")
+        print(f"No previous scan available. Using incomplete latest scan {latest_timestamp}.")
         return latest_files, latest_timestamp
 
 def download_chunks(file_list, download_dir="../data"):

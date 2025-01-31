@@ -16,7 +16,7 @@ from datetime import datetime
 
 # Custom NEXRAD API imports
 from RT_data_query import find_latest_scan, download_chunks, assemble_chunks
-from RT_data_processing import get_radar_elevations
+from RT_data_processing import get_radar_elevations, get_radar_fields
 
 #----------------------------------------------------------------------------------------------------------
 # INITIALIZATION
@@ -99,6 +99,62 @@ async def get_radar_elevations_api(radar_id: str, target_file: str = None):
     
     angles = get_radar_elevations(file_path)
     return {"elevation_angles": angles}
+
+@app.get("/get-radar-fields/{radar_id}")
+async def get_radar_fields_api(radar_id: str, target_file: str = None):
+    """API to return available radar fields for a radar scan."""
+    if target_file:
+        file_path = f"../data/{target_file}"
+    else:
+        print("Finding latest scan...")
+        latest_files, timestamp = find_latest_scan(radar_id)
+        
+        if not latest_files:
+            return {"error": "No files found for the latest scan."}
+
+        current_time = timestamp[0:8] + "-" + timestamp[8:]
+        filename = f"{radar_id}_{current_time}.bin"
+        output_file_path = os.path.join("../data", filename)
+
+        if not os.path.exists(output_file_path):
+            downloaded_files = download_chunks(latest_files, download_dir="../data")
+            assemble_chunks(downloaded_files, output_file_path)
+
+        file_path = output_file_path
+
+    print("File path: ", file_path)
+    if not os.path.exists(file_path):
+        return {"error": "Radar file not found"}
+    
+    fields = get_radar_fields(file_path)
+    return {"radar_fields": fields}
+
+@app.get("/get-dropdowns/{radar_id}")
+async def get_radar_fields_api(radar_id: str):
+    """API to return elevation angles and radar fields for a radar scan."""
+    print("Finding latest scan...")
+    latest_files, timestamp = find_latest_scan(radar_id)
+    
+    if not latest_files:
+        return {"error": "No files found for the latest scan."}
+
+    current_time = timestamp[0:8] + "-" + timestamp[8:]
+    filename = f"{radar_id}_{current_time}.bin"
+    output_file_path = os.path.join("../data", filename)
+
+    if not os.path.exists(output_file_path):
+        downloaded_files = download_chunks(latest_files, download_dir="../data")
+        assemble_chunks(downloaded_files, output_file_path)
+
+    file_path = output_file_path
+
+    print("File path: ", file_path)
+    if not os.path.exists(file_path):
+        return {"error": "Radar file not found"}
+    
+    angles = get_radar_elevations(file_path)
+    fields = get_radar_fields(file_path)
+    return {"elevation_angles": angles, "radar_fields": fields}
 
 #----------------------------------------------------------------------------------------------------------
 # SERVING THE REACT FRONTEND
