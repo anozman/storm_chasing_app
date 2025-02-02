@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Dropdown, DropdownButton, Button } from "react-bootstrap";
+import { Dropdown, DropdownButton, Button , Form} from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
 import MapComponent from "./MapComponent"; // Import the reusable map component
@@ -9,12 +9,16 @@ const App = () => {
   const [selectedRadar, setSelectedRadar] = useState(null);
   const [messages, setMessages] = useState([]);
   const [isLogOpen, setIsLogOpen] = useState(false);
+  const [opacity, setOpacity] = useState(0.8); // Default opacity
 
   // New state for dropdowns
   const [elevationAngles, setElevationAngles] = useState([]);
   const [selectedElevation, setSelectedElevation] = useState(null);
   const [radarFields, setRadarFields] = useState([]);
   const [selectedField, setSelectedField] = useState("reflectivity");
+
+  // State for radar data
+  const [radarOverlayData, setRadarData] = useState(null);
 
   // Fetch radar sites
   useEffect(() => {
@@ -51,6 +55,25 @@ const App = () => {
       .catch((error) => console.error("Error dropdown data:", error));
     }   
   }, [selectedRadar]);
+
+  // Fetch radar data when parameters change
+  useEffect(() => {
+    if (selectedRadar && selectedField && selectedElevation) {
+      fetch(`/get/${selectedField}/${selectedElevation}/${selectedRadar}`)
+        .then((response) => response.json())
+        .then((data) => {
+          console.log("Received Radar Data:", data); // Debugging
+  
+          if (data.latitude && data.longitude && data.values) {
+            setRadarData(data);
+          } else {
+            console.error("Invalid radar data received");
+          }
+        })
+        .catch((error) => console.error("Error fetching radar data:", error));
+    }
+  }, [selectedRadar, selectedField, selectedElevation]);
+
   // Handle dropdown selections
   const handleRadarSelect = (eventKey) => {
     setSelectedRadar(eventKey);
@@ -73,6 +96,7 @@ const App = () => {
 
   const handleElevationSelect = (eventKey) => setSelectedElevation(parseFloat(eventKey));
   const handleFieldSelect = (eventKey) => setSelectedField(eventKey);
+  const handleOpacityChange = (event) => setOpacity(parseFloat(event.target.value));
 
   return (
     <div className="container">
@@ -142,6 +166,12 @@ const App = () => {
         </DropdownButton>
       </div>
 
+      {/* Opacity Slider */}
+      <div className="opacity-slider">
+        <label>Opacity: {opacity.toFixed(2)}</label>
+        <Form.Range min={0} max={1} step={0.01} value={opacity} onChange={handleOpacityChange} />
+      </div>
+
       {/* Map Container */}
       {selectedRadar && radarSites[selectedRadar] && (
         <div className="map-container">
@@ -149,6 +179,8 @@ const App = () => {
             center={[radarSites[selectedRadar].lat, radarSites[selectedRadar].lon]}
             zoom={selectedRadar.startsWith("T") ? 10 : 7}
             overlays={[]} // No overlays currently
+            radarData={radarOverlayData} // Pass radar data
+            opacity={opacity} // Pass opacity value
           />
         </div>
       )}

@@ -1,5 +1,7 @@
 #----------------------------------------------------------------------------------------------------------
+#
 # IMPORTS
+#
 #----------------------------------------------------------------------------------------------------------
 
 # FastAPI imports
@@ -16,10 +18,12 @@ from datetime import datetime
 
 # Custom NEXRAD API imports
 from RT_data_query import find_latest_scan, download_chunks, assemble_chunks
-from RT_data_processing import get_radar_elevations, get_radar_fields
+from RT_data_processing import get_radar_elevations, get_radar_fields, find_latest_radar_file, extract_radar_data
 
 #----------------------------------------------------------------------------------------------------------
+#
 # INITIALIZATION
+#
 #----------------------------------------------------------------------------------------------------------
 
 app = FastAPI()
@@ -40,8 +44,14 @@ app.add_middleware(
 )
 
 #----------------------------------------------------------------------------------------------------------
+#
 # ROUTES
+#
 #----------------------------------------------------------------------------------------------------------
+
+########################################
+# Downloading data and extracting metadata
+########################################
 
 @app.get("/get-latest-scan/{radar_id}")
 async def get_latest_scan(radar_id: str):
@@ -156,8 +166,33 @@ async def get_radar_fields_api(radar_id: str):
     fields = get_radar_fields(file_path)
     return {"elevation_angles": angles, "radar_fields": fields}
 
+########################################
+# Data Overlays
+########################################
+
+@app.get("/get/{field}/{tilt}/{radar_id}")
+async def get_radar_data(field: str, tilt: float, radar_id: str):
+    """
+    API endpoint to fetch radar data for a given field, elevation angle, and radar site.
+    """
+    # Find the latest available radar file
+    radar_file = find_latest_radar_file(radar_id)
+
+    if not radar_file:
+        return {"error": f"No radar file found for {radar_id}"}
+
+    # Extract radar data
+    radar_data = extract_radar_data(radar_file, field, tilt)
+
+    if not radar_data:
+        return {"error": f"Failed to extract {field} data at {tilt}° from {radar_id}"}
+
+    return radar_data
+
 #----------------------------------------------------------------------------------------------------------
+#
 # SERVING THE REACT FRONTEND
+#
 #----------------------------------------------------------------------------------------------------------
 
 # Serve the React build files
