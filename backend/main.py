@@ -18,7 +18,7 @@ from datetime import datetime
 
 # Custom NEXRAD API imports
 from RT_data_query import find_latest_scan, download_chunks, assemble_chunks
-from RT_data_processing import get_radar_elevations, get_radar_fields, find_latest_radar_file, extract_radar_data
+from RT_data_processing import get_radar_elevations, get_radar_fields, find_latest_radar_file, extract_radar_data, extract_radar_polygons
 
 #----------------------------------------------------------------------------------------------------------
 #
@@ -188,6 +188,21 @@ async def get_radar_data(field: str, tilt: float, radar_id: str):
         return {"error": f"Failed to extract {field} data at {tilt}° from {radar_id}"}
 
     return radar_data
+
+@app.get("/get-polygons/{field}/{tilt}/{radar_id}")
+async def get_radar_polygons(field: str, tilt: float, radar_id: str):
+    """
+    API endpoint to fetch radar data as geospatial polygons for a given field, elevation angle, and radar site.
+    """
+    radar_file = find_latest_radar_file(radar_id)
+    if not radar_file:
+        return {"error": f"No radar file found for {radar_id}"}
+
+    radar_polygons = extract_radar_data(radar_file, field, tilt)
+    if not radar_polygons:
+        return {"error": f"Failed to extract {field} data at {tilt}° from {radar_id}"}
+
+    return radar_polygons
 
 #----------------------------------------------------------------------------------------------------------
 #

@@ -19,6 +19,7 @@ const App = () => {
 
   // State for radar data
   const [radarOverlayData, setRadarData] = useState(null);
+  const [radarPolygons, setRadarPolygons] = useState([]); // Store radar polygon data
 
   // Fetch radar sites
   useEffect(() => {
@@ -57,6 +58,7 @@ const App = () => {
   }, [selectedRadar]);
 
   // Fetch radar data when parameters change
+  /*
   useEffect(() => {
     if (selectedRadar && selectedField && selectedElevation) {
       fetch(`/get/${selectedField}/${selectedElevation}/${selectedRadar}`)
@@ -73,6 +75,43 @@ const App = () => {
         .catch((error) => console.error("Error fetching radar data:", error));
     }
   }, [selectedRadar, selectedField, selectedElevation]);
+  */
+
+  // Fetch radar polygons from new API endpoint
+  useEffect(() => {
+    if (selectedRadar && selectedField && selectedElevation) {
+      fetch(`/get-polygons/${selectedField}/${selectedElevation}/${selectedRadar}`)
+        .then((response) => response.json())
+        .then((data) => {
+          console.log("Received Radar Polygons:", data);
+
+          // Frontend check to validate data is json not string
+          try {
+            if (typeof data === "string") {
+              data = JSON.parse(data);
+            }
+          } catch (err) {
+            console.error("Failed to parse radar JSON:", data);
+          }
+  
+          // ✅ Fix: check for valid FeatureCollection
+          if (data.type === "FeatureCollection" && Array.isArray(data.features)) {
+            // Filter out NaN values in JS just to be safe
+            const cleanedFeatures = data.features.filter(
+              (feature) => 
+                feature.properties &&
+                typeof feature.properties.value === "number" &&
+                !isNaN(feature.properties.value)
+            );
+            setRadarPolygons(cleanedFeatures);
+          } else {
+            console.error("Invalid radar polygons received", data);
+          }
+        })
+        .catch((error) => console.error("Error fetching radar polygons:", error));
+    }
+  }, [selectedRadar, selectedField, selectedElevation]);
+  
 
   // Handle dropdown selections
   const handleRadarSelect = (eventKey) => {
@@ -176,14 +215,17 @@ const App = () => {
       {selectedRadar && radarSites[selectedRadar] && (
         <div className="map-container">
           <MapComponent
-            center={[radarSites[selectedRadar].lat, radarSites[selectedRadar].lon]}
-            zoom={selectedRadar.startsWith("T") ? 10 : 7}
-            overlays={[]} // No overlays currently
-            radarData={radarOverlayData} // Pass radar data
-            opacity={opacity} // Pass opacity value
-          />
+          center={[radarSites[selectedRadar].lat, radarSites[selectedRadar].lon]}
+          zoom={selectedRadar.startsWith("T") ? 10 : 7}
+          opacity={opacity}
+          radarGeoJson={{
+            type: "FeatureCollection",
+            features: radarPolygons  // Now wrapped properly
+          }}
+        />
         </div>
       )}
+
 
       {/* Message Log Dropdown (Scrollable, Reverse Chronological Order) */}
       <div className="message-log-container">

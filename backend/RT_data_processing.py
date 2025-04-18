@@ -3,6 +3,11 @@ import pyart
 import numpy as np
 from glob import glob
 from datetime import datetime
+import json
+
+import matplotlib.pyplot as plt
+import matplotlib.colors
+import matplotlib
 
 def get_radar_elevations(file_path):
     """Extract and return radar elevation angles from a NEXRAD file."""
@@ -56,25 +61,127 @@ def sanitize_data(data_array):
     ]
 
 def extract_radar_data(file_path, field, elevation):
+    """
+    Extracts radar data, interpolates it onto a uniform lat/lon grid, and returns it as GeoJSON.
+    """
     try:
+        print(f"Opening radar file: {file_path}")
         radar = pyart.io.read_nexrad_archive(file_path)
-        sweep_index = np.argmin(np.abs(radar.fixed_angle['data'] - elevation))
+        print("Radar file loaded successfully.")
 
+        # Check if field exists
         if field not in radar.fields:
-            raise ValueError(f"Field '{field}' not found in radar data.")
+            raise ValueError(f"Field '{field}' not found in radar data. Available fields: {list(radar.fields.keys())}")
 
-        radar_data = radar.fields[field]['data'][sweep_index]
-        gate_lats = radar.gate_latitude['data'][sweep_index]
-        gate_lons = radar.gate_longitude['data'][sweep_index]
+        # Find the closest elevation sweep
+        sweep_index = np.argmin(np.abs(radar.fixed_angle["data"] - elevation))
+        print(f"Selected sweep index: {sweep_index} for elevation {elevation}°")
 
-        # Ensure the data is JSON-serializable
-        sanitized_values = sanitize_data(radar_data.filled(np.nan).flatten())
+        # Additional debugging to see the radar data
+        raw_data = radar.get_field(sweep_index, field)
+        print(f"Raw sweep shape: {raw_data.shape}, masked: {np.ma.is_masked(raw_data)}, valid pts: {np.count_nonzero(~raw_data.mask)}")
 
-        return {
-            "latitude": sanitize_data(gate_lats.flatten()),
-            "longitude": sanitize_data(gate_lons.flatten()),
-            "values": sanitized_values,
-        }
+
+        # Convert radar data into a 2D lat/lon grid
+        grid = pyart.map.grid_from_radars(
+            radar, 
+            grid_shape=(1, 500, 500),  # 500x500 resolution
+            grid_limits=((0, 20000), (-150000, 150000), (-150000, 150000)),
+            fields=[field]
+        )
+
+        print("Grid mapping completed successfully.")
+
+        lat_grid = grid.point_latitude["data"][0]
+        lon_grid = grid.point_longitude["data"][0]
+        value_grid = grid.fields[field]["data"][0]
+
+        lat_flat = lat_grid.flatten()
+        lon_flat = lon_grid.flatten()
+        val_flat = value_grid.flatten()
+
+        # Bulky, only use for debug
+        #print(f"Sample Data - Lat: {lat_grid[:5]}, Lon: {lon_grid[:5]}, Values: {value_grid[:5]}") 
+
+        cmap = matplotlib.cm.get_cmap('pyart_NWSRef')  # Think about getting the color map from the radar package
+        norm = matplotlib.colors.Normalize(vmin=np.nanmin(0), vmax=np.nanmax(60))  
+
+        geojson_features = []
+        # Iterate and build features ONLY for valid (unmasked) values
+        for lat, lon, val in zip(lat_flat, lon_flat, val_flat):
+            if np.ma.is_masked(val) or np.isnan(val) or np.isinf(val):
+                continue
+            color = matplotlib.colors.rgb2hex(cmap(norm(val)))
+            geojson_features.append({
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [float(lon), float(lat)]
+                },
+                "properties": {
+                    "value": float(val),
+                    "color": color
+                }
+            })
+
+        print(f"GeoJSON Data Prepared, Features: {len(geojson_features)}")
+
+        return json.dumps({"type": "FeatureCollection", "features": geojson_features})
+
     except Exception as e:
         print(f"Error processing radar file {file_path}: {e}")
-        return None
+        return json.dumps({"error": str(e)})  # Ensure JSON response format
+
+def extract_radar_polygons(file_path, field, elevation):
+    try:
+        radar = pyart.io.read_nexrad_archive(file_path)
+        
+        if field not in radar.fields:
+            raise ValueError(f"Field '{field}' not found in radar data. Available fields: {list(radar.fields.keys())}")
+
+        sweep_index = np.argmin(np.abs(radar.fixed_angle["data"] - elevation))
+        radar_data = radar.get_field(sweep_index, field)
+
+        # Extract gate coordinates
+        azimuths = radar.get_azimuth(sweep_index)
+        ranges = radar.range['data']
+        lat_grid, lon_grid, _ = radar.get_gate_lat_lon_alt(sweep_index)  
+
+        features = []
+        cmap = matplotlib.cm.get_cmap('viridis')  
+        norm = matplotlib.colors.Normalize(vmin=np.nanmin(0), vmax=np.nanmax(60))  
+
+        for az_idx in range(len(azimuths) - 1):
+            for r_idx in range(len(ranges) - 1):
+                value = radar_data[az_idx, r_idx]
+
+                if np.isnan(value) or value is None:
+                    continue  
+
+                lat1, lon1 = lat_grid[az_idx, r_idx], lon_grid[az_idx, r_idx]
+                lat2, lon2 = lat_grid[az_idx, r_idx + 1], lon_grid[az_idx, r_idx + 1]
+                lat3, lon3 = lat_grid[az_idx + 1, r_idx + 1], lon_grid[az_idx + 1, r_idx + 1]
+                lat4, lon4 = lat_grid[az_idx + 1, r_idx], lon_grid[az_idx + 1, r_idx]
+
+                color = matplotlib.colors.rgb2hex(cmap(norm(value)))
+
+                feature = {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [[[lon1, lat1], [lon2, lat2], [lon3, lat3], [lon4, lat4], [lon1, lat1]]]
+                    },
+                    "properties": {"value": abs(float(value)), "color": color}
+                }
+                features.append(feature)
+
+        # Construct final GeoJSON
+        geojson_output = {
+            "type": "FeatureCollection",
+            "features": features
+        }
+
+        return json.dumps(geojson_output)
+
+    except Exception as e:
+        return json.dumps({"error": str(e)})
