@@ -16,7 +16,7 @@
 ---
 
 ## Overview
-The **Storm Chasing App** is an interactive, map-driven application designed for storm chasers to monitor radar data, process storm patterns, and visualize AI-based predictions. The app combines a Python-based backend with a sleek, interactive React.js frontend.
+The **Storm Chasing App** is an interactive, map-driven application designed for storm chasers to monitor radar data and visualize AI-based predictions. The app combines a Python-based backend with a sleek, interactive React.js frontend.
 
 ![Version](https://img.shields.io/badge/version-0.1.0-blue?style=for-the-badge)
 ## Version History
@@ -28,7 +28,7 @@ The **Storm Chasing App** is an interactive, map-driven application designed for
 ---
 
 ## Features
-- **Interactive Map**: Visualize radar data with Mapbox.
+- **Interactive Map**: Interactive map provided by Leaflet.js.
 - **AI Predictions**: Real-time storm tracking and analysis using AI models.
 - **Custom Data Streams**: Pull and process radar data asynchronously.
 - **User-Friendly Interface**: Dropdowns and menus for data selection and customization.
@@ -36,8 +36,18 @@ The **Storm Chasing App** is an interactive, map-driven application designed for
 
 ---
 
-## Architecture
-The app is divided into three main components:
+## Tech Stack and implementations
+
+### Backend
+The backend is build upon the **FastAPI** library to deliver fast and efficient data queries and deliveries. The backend also consists of a lot of radar data provessing, provided by the **Py-ART toolkit**. This toolkit was specially created for handling NexRad radar data via the AWS S3 bucket system.
+
+### Frontend
+The frontend is built using React.js. This framework gives a lot of versatility and control to create a website that will effectively achieve our desired functionality. The mapping utility used is Leaflet.js, which is an open source interactive mapping tool. This provides us the interactive map for our users to adjust their view of the storms. On initialization all the radars within the NexRad radar network are sorted alphabetically by site name, with the top radar being the currently selected radar. **Currently**, to reload data, the user must click on the radar button and re-select the current radar site or enter a new site. This will hopefully be changed in the future.
+
+The data is currently being plotted using GeoJson as a FeatureCollection of Point geometries. The goal is to switch to polygons, so the radar gate boundaries will be plotted directly (and with no border linewidth).
+
+### AI
+This will likely be in Tensorflow or PyTorch. My experience is in Tensorflow, but the ML API is somewhat out of date in comparison to PyTorch. Tensorflow will still likely be used to process the data such that the data can be properly prepared and pushed to the AI for training.
 
 ### **System Architecture Diagram**
 
@@ -47,10 +57,10 @@ A nice documented system architecture diagram can be added here at some point bu
 
 ## Installation
 ### Prerequisites:
-- Python 3.9+
+- Python 3.10+
 - Node.js 16+
 - npm or yarn
-- Mapbox API key
+- Anaconda or conda derivative
 
 ### Setup:
 
@@ -124,6 +134,14 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 ## Usage
 
 
+## Data
+Radar data is provided by the NWS Radar API accessable through AWS. In using the NexRad API, we can access both a live radar feed in addition to archive data which is used to train the AI. The Jupyter notebooks in the data exploration directory was for that main intent, in addition to potentially debugging what the radar data should look like between the data pull and plotting ont the final website.
+
+## Future Features
+Here is where I would like to catelog any future features that I may develop in the future
+- Data overlays: SPC Outlooks, SPC MDs, SPC Mesoanalysis
+- Non-radar pages: AI metrics and event reanalysis, External reference to SPC products
+- Radar data async query toggles and memory/storage management
 
 ## Contributions
 
