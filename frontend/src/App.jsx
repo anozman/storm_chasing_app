@@ -83,7 +83,7 @@ const App = () => {
       fetch(`/get-polygons/${selectedField}/${selectedElevation}/${selectedRadar}`)
         .then((response) => response.json())
         .then((data) => {
-          console.log("Received Radar Polygons:", data);
+          //console.log("Received Radar Polygons:", data); //Getting rid of this print statement for now
 
           // Frontend check to validate data is json not string
           try {

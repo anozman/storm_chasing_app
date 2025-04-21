@@ -28,7 +28,7 @@ The **Storm Chasing App** is an interactive, map-driven application designed for
 ---
 
 ## Features
-- **Interactive Map**: Interactive map provided by Leaflet.js.
+- **Interactive Map**: Interactive map provided by Deck.gl and Mapbox.gl.
 - **AI Predictions**: Real-time storm tracking and analysis using AI models.
 - **Custom Data Streams**: Pull and process radar data asynchronously.
 - **User-Friendly Interface**: Dropdowns and menus for data selection and customization.
@@ -42,7 +42,7 @@ The **Storm Chasing App** is an interactive, map-driven application designed for
 The backend is build upon the **FastAPI** library to deliver fast and efficient data queries and deliveries. The backend also consists of a lot of radar data provessing, provided by the **Py-ART toolkit**. This toolkit was specially created for handling NexRad radar data via the AWS S3 bucket system.
 
 ### Frontend
-The frontend is built using React.js. This framework gives a lot of versatility and control to create a website that will effectively achieve our desired functionality. The mapping utility used is Leaflet.js, which is an open source interactive mapping tool. This provides us the interactive map for our users to adjust their view of the storms. On initialization all the radars within the NexRad radar network are sorted alphabetically by site name, with the top radar being the currently selected radar. **Currently**, to reload data, the user must click on the radar button and re-select the current radar site or enter a new site. This will hopefully be changed in the future.
+The frontend is built using React.js. This framework gives a lot of versatility and control to create a website that will effectively achieve our desired functionality. The mapping utility used is Deck.gl over Mapbox.gl, which is an open source interactive mapping tool. Using the combination of these utilities allows for the user to interact with high fidelity radar data and utilize the zoom features of the mapping utility to view the storms at both the gate-to-gate level and further on the mesoscale level. Using this mapping setup, the hope is to also optimize the user experience with interacting with the different data toggles seemlessly without having to wait on data to reload when switching products. On initialization all the radars within the NexRad radar network are sorted alphabetically by site name, with the top radar being the currently selected radar. **Currently**, to reload data, the user must click on the radar button and re-select the current radar site or enter a new site. This will hopefully be changed in the future.
 
 The data is currently being plotted using GeoJson as a FeatureCollection of Point geometries. The goal is to switch to polygons, so the radar gate boundaries will be plotted directly (and with no border linewidth).
 
@@ -91,13 +91,15 @@ npm run dev
 ```
 Installing other dependencies needed for the application
 ```
-npm install leaflet
+npm install @deck.gl/react @deck.gl/core @deck.gl/layers react-map-gl maplibre-gl
 ```
 
 And the following should be your file structure:
 ```
 backend/
 ├── main.py
+├── RT_data_query.py
+├── RT_data_processing.py
 frontend/
 ├── node_modules/
 ├── public/
@@ -106,12 +108,15 @@ frontend/
 │   ├── App.css
 │   ├── App.jsx
 │   ├── index.css
-│   └── main.jsx
+│   ├── main.jsx
+│   └── MapComponent.jsx
 ├── .gitignore
 ├── index.html
 ├── package.json
 ├── README.md
 ├── vite.config.js
+Data/
+├── {Radar data files fully inflated/assembled}
 ```
 
 ### Booting application from terminal
