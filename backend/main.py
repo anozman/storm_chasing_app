@@ -198,7 +198,8 @@ async def get_radar_polygons(field: str, tilt: float, radar_id: str):
     if not radar_file:
         return {"error": f"No radar file found for {radar_id}"}
 
-    radar_polygons = extract_radar_data(radar_file, field, tilt)
+    #radar_polygons = extract_radar_data(radar_file, field, tilt) # Point Geometry: Operational
+    radar_polygons = extract_radar_polygons(radar_file, field, tilt) # Polygon Geometry: Experimental
     if not radar_polygons:
         return {"error": f"Failed to extract {field} data at {tilt}° from {radar_id}"}
 

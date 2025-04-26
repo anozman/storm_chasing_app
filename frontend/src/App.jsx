@@ -21,6 +21,10 @@ const App = () => {
   const [radarOverlayData, setRadarData] = useState(null);
   const [radarPolygons, setRadarPolygons] = useState([]); // Store radar polygon data
 
+  // Toggling radar center and zoom
+  //const [mapCenter, setMapCenter] = useState([35.33, -97.28]); // Default to KTLX
+  //const [zoom, setZoom] = useState(7); // Default zoom level for WSR-88D
+
   // Fetch radar sites
   useEffect(() => {
     fetch("/radar_sites.json")
@@ -57,25 +61,19 @@ const App = () => {
     }   
   }, [selectedRadar]);
 
-  // Fetch radar data when parameters change
-  /*
-  useEffect(() => {
-    if (selectedRadar && selectedField && selectedElevation) {
-      fetch(`/get/${selectedField}/${selectedElevation}/${selectedRadar}`)
-        .then((response) => response.json())
-        .then((data) => {
-          console.log("Received Radar Data:", data); // Debugging
-  
-          if (data.latitude && data.longitude && data.values) {
-            setRadarData(data);
-          } else {
-            console.error("Invalid radar data received");
-          }
-        })
-        .catch((error) => console.error("Error fetching radar data:", error));
+  // Set map center and zoom when radar changes
+  /*useEffect(() => {
+    if (!selectedRadar || !radarSites[selectedRadar]) return;
+
+    const site = radarSites[selectedRadar];
+    setMapCenter([site.lat, site.lon]);
+
+    if (selectedRadar.startsWith("T")) {
+      setZoom(10); // More zoomed-in for TDWR
+    } else {
+      setZoom(7); // WSR-88D default
     }
-  }, [selectedRadar, selectedField, selectedElevation]);
-  */
+  }, [selectedRadar, radarSites]);*/
 
   // Fetch radar polygons from new API endpoint
   useEffect(() => {
@@ -216,7 +214,9 @@ const App = () => {
         <div className="map-container">
           <MapComponent
           center={[radarSites[selectedRadar].lat, radarSites[selectedRadar].lon]}
-          zoom={selectedRadar.startsWith("T") ? 10 : 7}
+          //center={mapCenter}
+          zoom={selectedRadar.startsWith("T") ? 8 : 6}
+          //zoom={zoom}
           opacity={opacity}
           radarGeoJson={{
             type: "FeatureCollection",

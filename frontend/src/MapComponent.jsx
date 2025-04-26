@@ -19,6 +19,17 @@ export default function MapComponent({ radarGeoJson, opacity, center, zoom }) {
     latitude: center[0],
     zoom: zoom || INITIAL_VIEW_STATE.zoom,
   });
+  useEffect(() => {
+    if (center && zoom !== undefined) {
+      setViewport((prev) => ({
+        ...prev,
+        longitude: center[1],
+        latitude: center[0],
+        zoom: zoom,
+        transitionDuration: 1000, // smooth pan
+      }));
+    }
+  }, [center, zoom]);
 
   const deckRef = useRef();
 

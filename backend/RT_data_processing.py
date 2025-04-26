@@ -9,6 +9,16 @@ import matplotlib.pyplot as plt
 import matplotlib.colors
 import matplotlib
 
+cmaps = {
+    'reflectivity': {'cmap' : 'pyart_NWSRef', 'norm': (0,80)},
+    'velocity': {'cmap' : 'pyart_NWSVel', 'norm' : (-30,30)},
+    'spectrum_width': {'cmap' : 'pyart_NWS_SPW', 'norm' : (0,10)},
+    'differential_reflectivity': {'cmap' : 'pyart_RefDiff', 'norm' : (-5,5)},
+    'differential_phase': {'cmap' : 'pyart_SCook18', 'norm' : (0,180)},
+    'cross_correlation_ratio': {'cmap' : 'pyart_Carbone42', 'norm' : (0,1)},
+    'clutter_filter_power_removed': {'cmap' : 'pyart_NWSRef', 'norm': (0,80)}
+}
+
 def get_radar_elevations(file_path):
     """Extract and return radar elevation angles from a NEXRAD file."""
     try:
@@ -135,28 +145,48 @@ def extract_radar_data(file_path, field, elevation):
 def extract_radar_polygons(file_path, field, elevation):
     try:
         radar = pyart.io.read_nexrad_archive(file_path)
-        
+
         if field not in radar.fields:
             raise ValueError(f"Field '{field}' not found in radar data. Available fields: {list(radar.fields.keys())}")
 
         sweep_index = np.argmin(np.abs(radar.fixed_angle["data"] - elevation))
         radar_data = radar.get_field(sweep_index, field)
 
-        # Extract gate coordinates
-        azimuths = radar.get_azimuth(sweep_index)
-        ranges = radar.range['data']
-        lat_grid, lon_grid, _ = radar.get_gate_lat_lon_alt(sweep_index)  
+        print(f"Field: {field} Raw sweep shape: {radar_data.shape}, masked: {np.ma.is_masked(radar_data)}, valid pts: {np.count_nonzero(~radar_data.mask)}")
+
+        use_grid_method = np.count_nonzero(~radar_data.mask) == 0
+
+        if use_grid_method:
+            print("Switching to gridding method due to fully masked sweep data")
+            grid_shape = (1, 500, 500)
+            grid_limits = ((0, 2000), (-150000, 150000), (-150000, 150000))
+            grid = pyart.map.grid_from_radars(
+                radar, 
+                grid_shape=grid_shape, 
+                grid_limits=grid_limits,
+                fields=[field]
+            )
+            lat_grid = grid.point_latitude['data'][0]
+            lon_grid = grid.point_longitude['data'][0]
+            radar_data = grid.fields[field]['data'][0]
+        else:
+            azimuths = radar.get_azimuth(sweep_index)
+            ranges = radar.range['data']
+            lat_grid, lon_grid, _ = radar.get_gate_lat_lon_alt(sweep_index)
 
         features = []
-        cmap = matplotlib.cm.get_cmap('viridis')  
-        norm = matplotlib.colors.Normalize(vmin=np.nanmin(0), vmax=np.nanmax(60))  
+        cmap = matplotlib.cm.get_cmap(cmaps[field]['cmap']) if 'cmap' in cmaps[field] else matplotlib.cm.get_cmap('pyart_NWSRef')
+        norm = (matplotlib.colors.Normalize(vmin=cmaps[field]['norm'][0], vmax=cmaps[field]['norm'][1]) if 'norm' in cmaps[field]
+                else matplotlib.colors.Normalize(vmin=0, vmax=75))
+        print(f"Color map: {cmap.name}, Norm: {norm.vmin} to {norm.vmax}")
 
-        for az_idx in range(len(azimuths) - 1):
-            for r_idx in range(len(ranges) - 1):
+        lat_shape, lon_shape = lat_grid.shape
+        for az_idx in range(lat_shape - 1):
+            for r_idx in range(lon_shape - 1):
                 value = radar_data[az_idx, r_idx]
 
-                if np.isnan(value) or value is None:
-                    continue  
+                if np.ma.is_masked(value) or np.isnan(value) or np.isinf(value) or value == -9999:
+                    continue
 
                 lat1, lon1 = lat_grid[az_idx, r_idx], lon_grid[az_idx, r_idx]
                 lat2, lon2 = lat_grid[az_idx, r_idx + 1], lon_grid[az_idx, r_idx + 1]
@@ -171,17 +201,13 @@ def extract_radar_polygons(file_path, field, elevation):
                         "type": "Polygon",
                         "coordinates": [[[lon1, lat1], [lon2, lat2], [lon3, lat3], [lon4, lat4], [lon1, lat1]]]
                     },
-                    "properties": {"value": abs(float(value)), "color": color}
+                    "properties": {"value": float(value), "color": color}
                 }
                 features.append(feature)
 
-        # Construct final GeoJSON
-        geojson_output = {
-            "type": "FeatureCollection",
-            "features": features
-        }
+        print(f"GeoJSON Data Prepared, Features: {len(features)}")
 
-        return json.dumps(geojson_output)
+        return json.dumps({"type": "FeatureCollection", "features": features})
 
     except Exception as e:
         return json.dumps({"error": str(e)})
