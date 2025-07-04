@@ -4,6 +4,7 @@ import numpy as np
 from glob import glob
 from datetime import datetime
 import json
+import re
 
 import matplotlib.pyplot as plt
 import matplotlib.colors
@@ -59,6 +60,9 @@ def find_latest_radar_file(radar_id, data_dir="../data"):
         return None
 
     # Extract timestamps from filenames and sort to find the latest
+    regex_pattern = re.compile(rf".*{radar_id}_\d{{8}}-\d{{6}}\.bin$")
+    radar_files = [f for f in radar_files if regex_pattern.match(os.path.basename(f))]
+    
     radar_files.sort(key=lambda f: datetime.strptime(f.split("_")[-1].split(".")[0], "%Y%m%d-%H%M%S"), reverse=True)
 
     return radar_files[0]
